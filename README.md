@@ -1,8 +1,7 @@
 Tool to generate an initial typst layout of articles for the [Die Probezeit Zeit](https://dieprobezeit.ch) Newsletter.
 
-## Workflow
+## Workflow (may be out of sync with actual code)
 ### Configuration
-- Directory of plain text articles
 - Edition number
 - Release date
 - List of the following for the previews
