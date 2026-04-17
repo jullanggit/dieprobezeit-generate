@@ -48,7 +48,7 @@ const DEFAULT_TEMPLATE: &str = include_str!("../template.typ");
 
 fn main() {
     let config_str = fs::read_to_string("config.json").expect("Failed to read config");
-    let config = Config::deserialize_json("config.json").expect("Failed to deserialize config");
+    let config = Config::deserialize_json(&config_str).expect("Failed to deserialize config");
 
     let template = match env::args().nth(1) {
         Some(path) => fs::read_to_string(path).expect("Failed to read template"),
@@ -64,43 +64,47 @@ fn main() {
     // write lua filter to cache
     let highlight_filter_path = write_highlight_filter();
 
-    let body = config.articles.into_iter().map(
-        |Article {
-             path,
-             header,
-             footer,
-             kürzel,
-             language,
-         }| {
-            let pandoc_err_msg = "Failed to run pandoc on article";
-            let output = Command::new("pandoc")
-                .args([&path, "--to", "typst", "--lua-filter"])
-                .arg(&highlight_filter_path)
-                .output()
-                .expect(pandoc_err_msg);
-            if !output.status.success() {
-                panic!("{}", pandoc_err_msg);
-            }
+    let body = config
+        .articles
+        .into_iter()
+        .map(
+            |Article {
+                 path,
+                 header,
+                 footer,
+                 kürzel,
+                 language,
+             }| {
+                let pandoc_err_msg = "Failed to run pandoc on article";
+                let output = Command::new("pandoc")
+                    .args([&path, "--to", "typst", "--lua-filter"])
+                    .arg(&highlight_filter_path)
+                    .output()
+                    .expect(pandoc_err_msg);
+                if !output.status.success() {
+                    panic!("{}", pandoc_err_msg);
+                }
 
-            let content = String::from_utf8(output.stdout).expect("Pandoc output should be utf8");
-            let (title, rest) = content.split_once('\n').expect("Article has no title");
+                let content =
+                    String::from_utf8(output.stdout).expect("Pandoc output should be utf8");
+                let (title, rest) = content.split_once('\n').expect("Article has no title");
 
-            let centered = |content| format!("centered[\n{}\n]\nspacing,\n", content);
+                let centered = |content| format!("centered[\n{}\n]\nspacing,\n", content);
 
-            let (header, rest) = if header {
-                let (header, rest) = rest.split_once('\n').expect("Article has no header");
-                (centered(header), rest)
-            } else {
-                (String::new(), rest)
-            };
-            let (body, footer) = if footer {
-                let (body, footer) = rest.rsplit_once("\n").expect("Article has no footer");
-                (body, centered(footer))
-            } else {
-                (rest, String::new())
-            };
-            format!(
-                "
+                let (header, rest) = if header {
+                    let (header, rest) = rest.split_once('\n').expect("Article has no header");
+                    (centered(header), rest)
+                } else {
+                    (String::new(), rest)
+                };
+                let (body, footer) = if footer {
+                    let (body, footer) = rest.rsplit_once("\n").expect("Article has no footer");
+                    (body, centered(footer))
+                } else {
+                    (rest, String::new())
+                };
+                format!(
+                    "
 #{language}(stack(
     dir: ttb,
     [= {title}],
@@ -117,16 +121,18 @@ fn main() {
 
 #pagebreak()
 "
-            )
-        },
-    );
+                )
+            },
+        )
+        .collect::<String>();
 
     let edition_str = template
         .replace("EDITION", &config.edition.to_string())
         .replace("YEAR", &config.release_date.year.to_string())
         .replace("MONTH", &config.release_date.month.to_string())
         .replace("DAY", &config.release_date.day.to_string())
-        .replace("PREVIEWS", &previews_str);
+        .replace("PREVIEWS", &previews_str)
+        .replace("BODY", &body);
 
     fs::write(config.release_date.to_string(), edition_str).expect("Failed to write edition")
 }
