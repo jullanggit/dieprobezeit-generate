@@ -18,7 +18,7 @@ struct Config {
 
 #[derive(DeJson)]
 struct Date {
-    year: u8,
+    year: u16,
     month: u8,
     day: u8,
 }
@@ -82,7 +82,11 @@ fn main() {
                     .output()
                     .expect(pandoc_err_msg);
                 if !output.status.success() {
-                    panic!("{}", pandoc_err_msg);
+                    panic!(
+                        "{}: {}",
+                        pandoc_err_msg,
+                        String::from_utf8_lossy(&output.stderr)
+                    );
                 }
 
                 let content =
@@ -134,7 +138,7 @@ fn main() {
         .replace("PREVIEWS", &previews_str)
         .replace("BODY", &body);
 
-    fs::write(config.release_date.to_string(), edition_str).expect("Failed to write edition")
+    fs::write(format!("{}.typ", config.release_date), edition_str).expect("Failed to write edition")
 }
 
 /// Writes the highlight lua filter and returns its path
