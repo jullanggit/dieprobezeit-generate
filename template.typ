@@ -134,9 +134,9 @@
         #text(size: textSize * 0.9, [_Layout, Design und Vorwort von Aster_])
       ]),
       spacing,
-      balance(columnar({
+      balance(columnar([
         PREVIEWS
-      })),
+      ])),
     ),
     footer: de({
       block(below: 6pt, line(length: 100%))

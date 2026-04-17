@@ -45,6 +45,7 @@ struct Article {
 
 const HIGHLIGHT_FILTER: &str = include_str!("../highlight-filter.lua");
 const DEFAULT_TEMPLATE: &str = include_str!("../template.typ");
+const BRAINMADE_SVG: &[u8] = include_bytes!("../Brainmade.svg");
 
 fn main() {
     let config_str = fs::read_to_string("config.json").expect("Failed to read config");
@@ -93,7 +94,7 @@ fn main() {
                     String::from_utf8(output.stdout).expect("Pandoc output should be utf8");
                 let (title, rest) = content.split_once('\n').expect("Article has no title");
 
-                let centered = |content| format!("centered[\n{}\n]\nspacing,\n", content);
+                let centered = |content| format!("centered[\n{}\n],\nspacing,\n", content);
 
                 let (header, rest) = if header {
                     let (header, rest) = rest.split_once('\n').expect("Article has no header");
@@ -111,7 +112,7 @@ fn main() {
                     "
 #{language}(stack(
     dir: ttb,
-    [= {title}],
+    [= {title} ],
     spacing,
     {header}
     balance(columnar[
@@ -138,7 +139,9 @@ fn main() {
         .replace("PREVIEWS", &previews_str)
         .replace("BODY", &body);
 
-    fs::write(format!("{}.typ", config.release_date), edition_str).expect("Failed to write edition")
+    fs::write(format!("{}.typ", config.release_date), edition_str)
+        .expect("Failed to write edition");
+    fs::write("Brainmade.svg", BRAINMADE_SVG).expect("Failed to write Brainmade.svg");
 }
 
 /// Writes the highlight lua filter and returns its path
