@@ -57,7 +57,45 @@ fn main() {
              footer,
              kürzel,
              language,
-         }| {},
+         }| {
+            let content = fs::read_to_string(path).expect("Failed to read article");
+            let (title, rest) = content.split_once('\n').expect("Article has no title");
+
+            let centered =
+                |content| format!("centered[\n{}\n]\nspacing,\n", plain_text_to_typst(content));
+
+            let (header, rest) = if header {
+                let (header, rest) = rest.split_once('\n').expect("Article has no header");
+                (centered(header), rest)
+            } else {
+                (String::new(), rest)
+            };
+            let (body, footer) = if footer {
+                let (body, footer) = rest.rsplit_once("\n").expect("Article has no footer");
+                (plain_text_to_typst(body), centered(footer))
+            } else {
+                (plain_text_to_typst(rest), String::new())
+            };
+            format!(
+                "
+#{language}(stack(
+    dir: ttb,
+    [= {title}],
+    spacing,
+    {header}
+    balance(columnar[
+        {body}
+    ]),
+    spacing,
+    {footer}
+    v(0.5em),
+    align(right, author(\"{kürzel}\")),
+))
+
+#pagebreak()
+"
+            )
+        },
     );
 
     let edition_str = template
