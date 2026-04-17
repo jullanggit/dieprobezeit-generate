@@ -1,4 +1,10 @@
-use std::{env, fmt::Display, fs};
+use std::{
+    env::{self, home_dir},
+    fmt::Display,
+    fs,
+    path::PathBuf,
+    process::Command,
+};
 
 use nanoserde::DeJson;
 
@@ -37,18 +43,26 @@ struct Article {
     language: String,
 }
 
+const HIGHLIGHT_FILTER: &str = include_str!("../highlight-filter.lua");
+const DEFAULT_TEMPLATE: &str = include_str!("../template.typ");
+
 fn main() {
     let config_str = fs::read_to_string("config.json").expect("Failed to read config");
     let config = Config::deserialize_json("config.json").expect("Failed to deserialize config");
 
-    let template_path = env::args().nth(1).unwrap();
-    let template = fs::read_to_string(template_path).expect("Failed to read template");
+    let template = match env::args().nth(1) {
+        Some(path) => fs::read_to_string(path).expect("Failed to read template"),
+        None => DEFAULT_TEMPLATE.into(),
+    };
 
     let previews_str = config
         .previews
         .into_iter()
-        .map(|Preview { title, body }| format!("== {title}\n{}", plain_text_to_typst(&body)))
+        .map(|Preview { title, body }| format!("== {title}\n{}", body))
         .collect::<String>();
+
+    // write lua filter to cache
+    let highlight_filter_path = write_highlight_filter();
 
     let body = config.articles.into_iter().map(
         |Article {
@@ -58,11 +72,20 @@ fn main() {
              kürzel,
              language,
          }| {
-            let content = fs::read_to_string(path).expect("Failed to read article");
+            let pandoc_err_msg = "Failed to run pandoc on article";
+            let output = Command::new("pandoc")
+                .args([&path, "--to", "typst", "--lua-filter"])
+                .arg(&highlight_filter_path)
+                .output()
+                .expect(pandoc_err_msg);
+            if !output.status.success() {
+                panic!("{}", pandoc_err_msg);
+            }
+
+            let content = String::from_utf8(output.stdout).expect("Pandoc output should be utf8");
             let (title, rest) = content.split_once('\n').expect("Article has no title");
 
-            let centered =
-                |content| format!("centered[\n{}\n]\nspacing,\n", plain_text_to_typst(content));
+            let centered = |content| format!("centered[\n{}\n]\nspacing,\n", content);
 
             let (header, rest) = if header {
                 let (header, rest) = rest.split_once('\n').expect("Article has no header");
@@ -72,9 +95,9 @@ fn main() {
             };
             let (body, footer) = if footer {
                 let (body, footer) = rest.rsplit_once("\n").expect("Article has no footer");
-                (plain_text_to_typst(body), centered(footer))
+                (body, centered(footer))
             } else {
-                (plain_text_to_typst(rest), String::new())
+                (rest, String::new())
             };
             format!(
                 "
@@ -108,6 +131,15 @@ fn main() {
     fs::write(config.release_date.to_string(), edition_str).expect("Failed to write edition")
 }
 
-fn plain_text_to_typst(text: &str) -> String {
-    text.replace("\n", "\\\n")
+/// Writes the highlight lua filter and returns its path
+fn write_highlight_filter() -> PathBuf {
+    let home = home_dir().expect("Failed to get home dir for writing highlight lua filter");
+
+    let dir = home.join(".cache/dieprobezeit-generate");
+    fs::create_dir_all(dir.clone()).expect("Failed to create cache dir");
+
+    let file = dir.join("highlight-filter.lua");
+    fs::write(file.clone(), HIGHLIGHT_FILTER).expect("Failed to write highlight lua filter");
+
+    file
 }
