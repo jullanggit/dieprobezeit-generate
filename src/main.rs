@@ -139,9 +139,16 @@ fn main() {
         .replace("PREVIEWS", &previews_str)
         .replace("BODY", &body);
 
-    fs::write(format!("{}.typ", config.release_date), edition_str)
-        .expect("Failed to write edition");
+    let typst_file = format!("{}.typ", config.release_date);
+    fs::write(typst_file.clone(), edition_str).expect("Failed to write edition");
     fs::write("Brainmade.svg", BRAINMADE_SVG).expect("Failed to write Brainmade.svg");
+
+    Command::new("typstyle")
+        .args(["-i", &typst_file])
+        .spawn()
+        .expect("Failed to spawn typst formatter")
+        .wait()
+        .expect("Failed to format typst file");
 }
 
 /// Writes the highlight lua filter and returns its path
