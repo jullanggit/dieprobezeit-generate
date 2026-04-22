@@ -196,7 +196,11 @@ BODY
 
 
 #if web {
-  hide(bibliography("refs.bib", style: "link-references.csl", title: none))
-} else {
-  bibliography("refs.bib", style: "link-references.csl", title: [Quellen])
+  show bibliography: it => none
 }
+
+#bibliography(
+  "refs.bib",
+  style: "link-references.csl",
+  title: [Quellen],
+)
