@@ -200,7 +200,7 @@ BODY
 }
 
 #bibliography(
-  "refs.bib",
+  "refs.yaml",
   style: "link-references.csl",
   title: [Quellen],
 )

@@ -1,6 +1,7 @@
 use std::{env::home_dir, fmt::Display, fs, path::PathBuf, process::Command};
 
 use nanoserde::DeJson;
+use regex::Regex;
 
 #[derive(DeJson)]
 struct Config {
@@ -41,6 +42,8 @@ const HIGHLIGHT_FILTER: &str = include_str!("../highlight-filter.lua");
 const EDITION_TEMPLATE: &str = include_str!("../templates/edition.typ");
 const ARTICLE_TEMPLATE: &str = include_str!("../templates/article.typ");
 const BRAINMADE_SVG: &[u8] = include_bytes!("../Brainmade.svg");
+const SOURCE_CITATION_PATTERN: &str =
+    r#"#link\("([^"]+)"\)\[#super\[\\\[\d+\\\]\];\]"#;
 
 fn main() {
     let config_str = fs::read_to_string("config.json").expect("Failed to read config");
@@ -126,9 +129,11 @@ fn main() {
         .replace("DAY", &config.release_date.day.to_string())
         .replace("PREVIEWS", &previews_str)
         .replace("BODY", &body);
+    let (edition_str, refs_yaml) = rewrite_source_citations(edition_str);
 
     let typst_file = format!("{}.typ", config.release_date);
     fs::write(typst_file.clone(), edition_str).expect("Failed to write edition");
+    fs::write("refs.yaml", refs_yaml).expect("Failed to write refs.yaml");
     fs::write("Brainmade.svg", BRAINMADE_SVG).expect("Failed to write Brainmade.svg");
 
     Command::new("typstyle")
@@ -137,6 +142,76 @@ fn main() {
         .expect("Failed to spawn typst formatter")
         .wait()
         .expect("Failed to format typst file");
+}
+
+fn rewrite_source_citations(content: String) -> (String, String) {
+    let citation_regex = Regex::new(SOURCE_CITATION_PATTERN).expect("Citation regex should compile");
+    let mut citations = Vec::<Citation>::new();
+    let mut rewritten = String::with_capacity(content.len());
+    let mut last_end = 0;
+
+    for captures in citation_regex.captures_iter(&content) {
+        let matched = captures.get(0).expect("Full citation match should exist");
+        rewritten.push_str(&content[last_end..matched.start()]);
+
+        let url = captures
+            .get(1)
+            .expect("Citation URL should exist")
+            .as_str()
+            .to_owned();
+
+        let key = if let Some(existing) = citations.iter().find(|citation| citation.url == url) {
+            existing.key()
+        } else {
+            let citation = Citation {
+                number: citations.len() + 1,
+                url,
+            };
+            let key = citation.key();
+            citations.push(citation);
+            key
+        };
+
+        rewritten.push_str(&format!("#cite(<{key}>)"));
+        last_end = matched.end();
+    }
+
+    rewritten.push_str(&content[last_end..]);
+
+    let refs_yaml = citations
+        .into_iter()
+        .map(|citation| citation.to_hayagriva_entry())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    (rewritten, refs_yaml)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Citation {
+    number: usize,
+    url: String,
+}
+
+impl Citation {
+    fn key(&self) -> String {
+        format!("ref-{}", self.number)
+    }
+
+    fn to_hayagriva_entry(&self) -> String {
+        let url = yaml_string(&self.url);
+        format!(
+            "{}:\n  type: web\n  title: {}\n  url: {}\n",
+            self.key(),
+            url,
+            url
+        )
+    }
+}
+
+fn yaml_string(value: &str) -> String {
+    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("\"{escaped}\"")
 }
 
 /// Writes the highlight lua filter and returns its path
@@ -150,4 +225,61 @@ fn write_highlight_filter() -> PathBuf {
     fs::write(file.clone(), HIGHLIGHT_FILTER).expect("Failed to write highlight lua filter");
 
     file
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{rewrite_source_citations, Citation};
+
+    #[test]
+    fn rewrites_source_citations_to_native_typst_citations() {
+        let input = concat!(
+            "Hello ",
+            "#link(\"https://anthropic.com/research\")[#super[\\[1\\]];]",
+            " and again ",
+            "#link(\"https://anthropic.com/research\")[#super[\\[1\\]];]",
+            "."
+        );
+
+        let (rewritten, refs_yaml) = rewrite_source_citations(input.to_owned());
+
+        assert_eq!("Hello #cite(<ref-1>) and again #cite(<ref-1>).", rewritten);
+        assert_eq!(
+            Citation {
+                number: 1,
+                url: "https://anthropic.com/research".to_owned()
+            }
+            .to_hayagriva_entry(),
+            refs_yaml
+        );
+    }
+
+    #[test]
+    fn ignores_source_numbering_and_uses_first_appearance_order() {
+        let input = concat!(
+            "#link(\"https://example.com/b\")[#super[\\[7\\]];] ",
+            "#link(\"https://example.com/a\")[#super[\\[2\\]];] ",
+            "#link(\"https://example.com/b\")[#super[\\[99\\]];]"
+        );
+        let (rewritten, refs_yaml) = rewrite_source_citations(input.to_owned());
+
+        assert_eq!(
+            "#cite(<ref-1>) #cite(<ref-2>) #cite(<ref-1>)",
+            rewritten
+        );
+        assert_eq!(
+            concat!(
+                "ref-1:\n",
+                "  type: web\n",
+                "  title: \"https://example.com/b\"\n",
+                "  url: \"https://example.com/b\"\n",
+                "\n",
+                "ref-2:\n",
+                "  type: web\n",
+                "  title: \"https://example.com/a\"\n",
+                "  url: \"https://example.com/a\"\n"
+            ),
+            refs_yaml
+        );
+    }
 }
