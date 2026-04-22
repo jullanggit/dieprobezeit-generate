@@ -2,6 +2,7 @@
 name = "dieprobezeit-generate"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0"
 
 [dependencies]
 nanoserde = { version = "0.2.1", default-features = false, features = ["json", "std"] }
