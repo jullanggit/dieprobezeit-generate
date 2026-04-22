@@ -42,6 +42,7 @@ const HIGHLIGHT_FILTER: &str = include_str!("../highlight-filter.lua");
 const EDITION_TEMPLATE: &str = include_str!("../templates/edition.typ");
 const ARTICLE_TEMPLATE: &str = include_str!("../templates/article.typ");
 const BRAINMADE_SVG: &[u8] = include_bytes!("../Brainmade.svg");
+const LINK_REFERENCES_CSL: &[u8] = include_bytes!("../link-references.csl");
 const SOURCE_CITATION_PATTERN: &str =
     r#"#link\("([^"]+)"\)\[#super\[\\\[\d+\\\]\];\]"#;
 
@@ -135,6 +136,8 @@ fn main() {
     fs::write(typst_file.clone(), edition_str).expect("Failed to write edition");
     fs::write("refs.yaml", refs_yaml).expect("Failed to write refs.yaml");
     fs::write("Brainmade.svg", BRAINMADE_SVG).expect("Failed to write Brainmade.svg");
+    fs::write("link-references.csl", LINK_REFERENCES_CSL)
+        .expect("Failed to write link-references.csl");
 
     Command::new("typstyle")
         .args(["-i", &typst_file])
