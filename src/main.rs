@@ -55,7 +55,7 @@ fn main() {
     let previews_str = config
         .previews
         .into_iter()
-        .map(|Preview { title, body }| format!("== {title}\n{}", body))
+        .map(|Preview { title, body }| format!("== {title}\n{body}\n"))
         .collect::<String>();
 
     // write lua filter to cache
