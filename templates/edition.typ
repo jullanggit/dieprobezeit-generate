@@ -200,10 +200,6 @@ BODY
 )))
 
 
-#if web {
-  show bibliography: it => none
-}
-
 #bibliography(
   "refs.yaml",
   style: "link-references.csl",
