@@ -1,10 +1,4 @@
-use std::{
-    env::{self, home_dir},
-    fmt::Display,
-    fs,
-    path::PathBuf,
-    process::Command,
-};
+use std::{env::home_dir, fmt::Display, fs, path::PathBuf, process::Command};
 
 use nanoserde::DeJson;
 
