@@ -163,19 +163,24 @@ fn rewrite_source_citations(content: String) -> (String, String) {
             .as_str()
             .to_owned();
 
-        let key = if let Some(existing) = citations.iter().find(|citation| citation.url == url) {
-            existing.key()
+        let citation = if let Some(existing) = citations.iter().find(|citation| citation.url == url)
+        {
+            existing.clone()
         } else {
             let citation = Citation {
                 number: citations.len() + 1,
                 url,
             };
-            let key = citation.key();
-            citations.push(citation);
-            key
+            citations.push(citation.clone());
+            citation
         };
 
-        rewritten.push_str(&format!("#cite(<{key}>)"));
+        rewritten.push_str(&format!(
+            "#reference({}, {}, <{}>)",
+            typst_string(&citation.url),
+            citation.number,
+            citation.key()
+        ));
         last_end = matched.end();
     }
 
@@ -217,6 +222,11 @@ fn yaml_string(value: &str) -> String {
     format!("\"{escaped}\"")
 }
 
+fn typst_string(value: &str) -> String {
+    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("\"{escaped}\"")
+}
+
 /// Writes the highlight lua filter and returns its path
 fn write_highlight_filter() -> PathBuf {
     let home = home_dir().expect("Failed to get home dir for writing highlight lua filter");
@@ -246,7 +256,10 @@ mod tests {
 
         let (rewritten, refs_yaml) = rewrite_source_citations(input.to_owned());
 
-        assert_eq!("Hello #cite(<ref-1>) and again #cite(<ref-1>).", rewritten);
+        assert_eq!(
+            "Hello #reference(\"https://anthropic.com/research\", 1, <ref-1>) and again #reference(\"https://anthropic.com/research\", 1, <ref-1>).",
+            rewritten
+        );
         assert_eq!(
             Citation {
                 number: 1,
@@ -267,7 +280,7 @@ mod tests {
         let (rewritten, refs_yaml) = rewrite_source_citations(input.to_owned());
 
         assert_eq!(
-            "#cite(<ref-1>) #cite(<ref-2>) #cite(<ref-1>)",
+            "#reference(\"https://example.com/b\", 1, <ref-1>) #reference(\"https://example.com/a\", 2, <ref-2>) #reference(\"https://example.com/b\", 1, <ref-1>)",
             rewritten
         );
         assert_eq!(

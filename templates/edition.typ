@@ -35,6 +35,11 @@
 #let superLink(str, num) = {
   super(link(str, [[#num]]))
 };
+#let reference(url, number, key) = if web {
+  link(url)[#super(underline(text(fill: blue, [\[#number\]])))]
+} else {
+  cite(key)
+}
 #let httpLink(target) = link("https://" + target)[#target]
 #let qr(content) = link(content)[#qr-code(content, error-correction: "Q")];
 // langs
@@ -202,5 +207,5 @@ BODY
 #bibliography(
   "refs.yaml",
   style: "link-references.csl",
-  title: [Quellen],
+  title: if web { none } else { [Quellen] },
 )
