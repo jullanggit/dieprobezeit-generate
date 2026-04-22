@@ -88,30 +88,37 @@ fn main() {
 
                 let content =
                     String::from_utf8(output.stdout).expect("Pandoc output should be utf8");
-                let (title, rest) = content.split_once('\n').expect("Article has no title");
+                let (title, rest) = content
+                    .trim()
+                    .split_once('\n')
+                    .expect("Article has no title");
 
                 let centered = |content| format!("centered[\n{}\n],\nspacing,\n", content);
 
                 let (header, rest) = if header {
-                    let (header, rest) = rest.split_once('\n').expect("Article has no header");
+                    let (header, rest) =
+                        rest.trim().split_once('\n').expect("Article has no header");
                     (centered(header), rest)
                 } else {
                     (String::new(), rest)
                 };
                 let (body, footer) = if footer {
-                    let (body, footer) = rest.rsplit_once("\n").expect("Article has no footer");
+                    let (body, footer) = rest
+                        .trim()
+                        .rsplit_once("\n")
+                        .expect("Article has no footer");
                     (body, centered(footer))
                 } else {
                     (rest, String::new())
                 };
 
                 ARTICLE_TEMPLATE
-                    .replace("LANGUAGE", &language)
-                    .replace("TITLE", title)
-                    .replace("HEADER", &header)
-                    .replace("BODY", body)
-                    .replace("FOOTER", &footer)
-                    .replace("KÜRZEL", &kürzel)
+                    .replace("LANGUAGE", language.trim())
+                    .replace("TITLE", title.trim())
+                    .replace("HEADER", header.trim())
+                    .replace("BODY", body.trim())
+                    .replace("FOOTER", footer.trim())
+                    .replace("KÜRZEL", kürzel.trim())
             },
         )
         .collect::<String>();
