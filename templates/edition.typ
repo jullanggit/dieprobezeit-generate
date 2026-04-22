@@ -193,3 +193,10 @@ BODY
   },
   spacing,
 )))
+
+
+#if web {
+  hide(bibliography("refs.bib", style: "link-references.csl", title: none))
+} else {
+  bibliography("refs.bib", style: "link-references.csl", title: [Quellen])
+}

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" version="1.0" class="in-text" default-locale="en-US">
+  <info>
+    <title>Die Probezeit Link References</title>
+    <id>https://dieprobezeit.ch/styles/link-references</id>
+    <updated>2026-04-22T00:00:00+00:00</updated>
+    <rights license="https://www.gnu.org/licenses/agpl-3.0.html">
+      This work is licensed under a GNU Affero General Public 3.0 License
+    </rights>
+  </info>
+
+  <citation collapse="citation-number">
+    <sort>
+      <key variable="citation-number"/>
+    </sort>
+    <layout delimiter="," vertical-align="sup" prefix="[" suffix="]">
+      <text variable="citation-number"/>
+    </layout>
+  </citation>
+
+  <bibliography hanging-indent="true">
+    <sort>
+      <key variable="citation-number"/>
+    </sort>
+    <layout>
+      <group delimiter=" ">
+        <text variable="citation-number" prefix="[" suffix="]"/>
+        <choose>
+          <if variable="URL">
+            <text variable="URL"/>
+          </if>
+          <else-if variable="DOI">
+            <text variable="DOI" prefix="https://doi.org/"/>
+          </else-if>
+        </choose>
+      </group>
+    </layout>
+  </bibliography>
+</style>
