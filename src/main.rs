@@ -44,17 +44,13 @@ struct Article {
 }
 
 const HIGHLIGHT_FILTER: &str = include_str!("../highlight-filter.lua");
-const DEFAULT_TEMPLATE: &str = include_str!("../template.typ");
+const EDITION_TEMPLATE: &str = include_str!("../templates/edition.typ");
+const ARTICLE_TEMPLATE: &str = include_str!("../templates/article.typ");
 const BRAINMADE_SVG: &[u8] = include_bytes!("../Brainmade.svg");
 
 fn main() {
     let config_str = fs::read_to_string("config.json").expect("Failed to read config");
     let config = Config::deserialize_json(&config_str).expect("Failed to deserialize config");
-
-    let template = match env::args().nth(1) {
-        Some(path) => fs::read_to_string(path).expect("Failed to read template"),
-        None => DEFAULT_TEMPLATE.into(),
-    };
 
     let previews_str = config
         .previews
@@ -108,30 +104,19 @@ fn main() {
                 } else {
                     (rest, String::new())
                 };
-                format!(
-                    "
-#{language}(stack(
-    dir: ttb,
-    [= {title} ],
-    spacing,
-    {header}
-    balance(columnar[
-        {body}
-    ]),
-    spacing,
-    {footer}
-    v(0.5em),
-    align(right, author(\"{kürzel}\")),
-))
 
-#pagebreak()
-"
-                )
+                ARTICLE_TEMPLATE
+                    .replace("LANGUAGE", &language)
+                    .replace("TITLE", title)
+                    .replace("HEADER", &header)
+                    .replace("BODY", body)
+                    .replace("FOOTER", &footer)
+                    .replace("KÜRZEL", &kürzel)
             },
         )
         .collect::<String>();
 
-    let edition_str = template
+    let edition_str = EDITION_TEMPLATE
         .replace("EDITION", &config.edition.to_string())
         .replace("YEAR", &config.release_date.year.to_string())
         .replace("MONTH", &config.release_date.month.to_string())
