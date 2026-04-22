@@ -90,14 +90,16 @@ fn main() {
                     String::from_utf8(output.stdout).expect("Pandoc output should be utf8");
                 let (title, rest) = content
                     .trim()
-                    .split_once('\n')
+                    .split_once("\n\n")
                     .expect("Article has no title");
 
                 let centered = |content| format!("centered[\n{}\n],\nspacing,\n", content);
 
                 let (header, rest) = if header {
-                    let (header, rest) =
-                        rest.trim().split_once('\n').expect("Article has no header");
+                    let (header, rest) = rest
+                        .trim()
+                        .split_once("\n\n")
+                        .expect("Article has no header");
                     (centered(header), rest)
                 } else {
                     (String::new(), rest)
@@ -105,7 +107,7 @@ fn main() {
                 let (body, footer) = if footer {
                     let (body, footer) = rest
                         .trim()
-                        .rsplit_once("\n")
+                        .rsplit_once("\n\n")
                         .expect("Article has no footer");
                     (body, centered(footer))
                 } else {
