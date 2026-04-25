@@ -42,9 +42,7 @@ const HIGHLIGHT_FILTER: &str = include_str!("../highlight-filter.lua");
 const EDITION_TEMPLATE: &str = include_str!("../templates/edition.typ");
 const ARTICLE_TEMPLATE: &str = include_str!("../templates/article.typ");
 const BRAINMADE_SVG: &[u8] = include_bytes!("../Brainmade.svg");
-const LINK_REFERENCES_CSL: &[u8] = include_bytes!("../link-references.csl");
-const SOURCE_CITATION_PATTERN: &str =
-    r#"#link\("([^"]+)"\)\[#super\[\\\[\d+\\\]\];\]"#;
+const SOURCE_CITATION_PATTERN: &str = r#"#link\("([^"]+)"\)\[#super\[\\\[\d+\\\]\];\]"#;
 
 fn main() {
     let config_str = fs::read_to_string("config.json").expect("Failed to read config");
@@ -130,14 +128,11 @@ fn main() {
         .replace("DAY", &config.release_date.day.to_string())
         .replace("PREVIEWS", &previews_str)
         .replace("BODY", &body);
-    let (edition_str, refs_yaml) = rewrite_source_citations(edition_str);
+    let edition_str = rewrite_source_citations(edition_str);
 
     let typst_file = format!("{}.typ", config.release_date);
     fs::write(typst_file.clone(), edition_str).expect("Failed to write edition");
-    fs::write("refs.yaml", refs_yaml).expect("Failed to write refs.yaml");
     fs::write("Brainmade.svg", BRAINMADE_SVG).expect("Failed to write Brainmade.svg");
-    fs::write("link-references.csl", LINK_REFERENCES_CSL)
-        .expect("Failed to write link-references.csl");
 
     Command::new("typstyle")
         .args(["-i", &typst_file])
@@ -147,9 +142,9 @@ fn main() {
         .expect("Failed to format typst file");
 }
 
-fn rewrite_source_citations(content: String) -> (String, String) {
-    let citation_regex = Regex::new(SOURCE_CITATION_PATTERN).expect("Citation regex should compile");
-    let mut citations = Vec::<Citation>::new();
+fn rewrite_source_citations(content: String) -> String {
+    let citation_regex =
+        Regex::new(SOURCE_CITATION_PATTERN).expect("Citation regex should compile");
     let mut rewritten = String::with_capacity(content.len());
     let mut last_end = 0;
 
@@ -163,63 +158,13 @@ fn rewrite_source_citations(content: String) -> (String, String) {
             .as_str()
             .to_owned();
 
-        let citation = if let Some(existing) = citations.iter().find(|citation| citation.url == url)
-        {
-            existing.clone()
-        } else {
-            let citation = Citation {
-                number: citations.len() + 1,
-                url,
-            };
-            citations.push(citation.clone());
-            citation
-        };
-
-        rewritten.push_str(&format!(
-            "#reference({}, {}, <{}>)",
-            typst_string(&citation.url),
-            citation.number,
-            citation.key()
-        ));
+        rewritten.push_str(&format!("#reference({})", typst_string(&url)));
         last_end = matched.end();
     }
 
     rewritten.push_str(&content[last_end..]);
 
-    let refs_yaml = citations
-        .into_iter()
-        .map(|citation| citation.to_hayagriva_entry())
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    (rewritten, refs_yaml)
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Citation {
-    number: usize,
-    url: String,
-}
-
-impl Citation {
-    fn key(&self) -> String {
-        format!("ref-{}", self.number)
-    }
-
-    fn to_hayagriva_entry(&self) -> String {
-        let url = yaml_string(&self.url);
-        format!(
-            "{}:\n  type: web\n  title: {}\n  url: {}\n",
-            self.key(),
-            url,
-            url
-        )
-    }
-}
-
-fn yaml_string(value: &str) -> String {
-    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
-    format!("\"{escaped}\"")
+    rewritten
 }
 
 fn typst_string(value: &str) -> String {
@@ -242,7 +187,7 @@ fn write_highlight_filter() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{rewrite_source_citations, Citation};
+    use super::{Citation, rewrite_source_citations};
 
     #[test]
     fn rewrites_source_citations_to_native_typst_citations() {

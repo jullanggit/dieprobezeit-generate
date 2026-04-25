@@ -31,15 +31,20 @@
 })
 #let author(author) = [_verfasst von #{ author }_]
 
-// TODO: make this auto-increment
-#let superLink(str, num) = {
-  super(link(str, [[#num]]))
-};
-#let reference(url, number, key) = if web {
-  link(url)[#super(underline(text(fill: blue, [\[#number\]])))]
-} else {
-  cite(key)
+#let formatReferenceNum(num) = [\[#num\]];
+#let references = state("references", (:));
+#let reference(url) = context {
+  let (num, update) = if references.get().keys().contains(url) {
+    (references.get().at(url), none)
+  } else {
+    let num = references.get().values().reduce((acc, x) => calc.max(acc, x)) + 1
+    let update = references.update(references => { references.insert(url, num); references })
+    (num, update)
+  }
+  update
+  link(url, super(formatReferenceNum(num)))
 }
+
 #let httpLink(target) = link("https://" + target)[#target]
 #let qr(content) = link(content)[#qr-code(content, error-correction: "Q")];
 // langs
@@ -200,8 +205,9 @@ BODY
 )))
 
 
-#bibliography(
-  "refs.yaml",
-  style: "link-references.csl",
-  title: if web { none } else { [Quellen] },
-)
+#if not web {
+  [= Quellen]
+  context for (url, i) in references.get() {
+    align(center)[#formatReferenceNum(i)#h(1em)#url]
+  }
+}
