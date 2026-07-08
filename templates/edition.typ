@@ -22,6 +22,9 @@
 #show heading.where(level: 1): set text(size: headingSize)
 #show heading.where(level: 2): set text(size: (headingSize + textSize) / 2.2)
 
+#set figure(supplement: none)
+#show figure.caption: emph
+
 /* helpers */
 #let balance(content) = layout(size => {
   let count = content.at("count")
