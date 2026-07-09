@@ -36,16 +36,20 @@
 
 #let formatReferenceNum(num) = [\[#num\]];
 #let references = state("references", (:));
-#let reference(url) = context {
-  let (num, update) = if references.get().keys().contains(url) {
-    (references.get().at(url), none)
-  } else {
-    let num = references.get().values().reduce((acc, x) => calc.max(acc, x)) + 1
-    let update = references.update(references => { references.insert(url, num); references })
-    (num, update)
+#let reference(url) = {
+  references.update(old => {
+    if old.keys().contains(url) {
+      old 
+    } else {
+      let new = old
+      new.insert(url, old.values().reduce((acc, x) => calc.max(acc, x)) + 1)
+      new
+    }
+  })
+
+  context {
+    link(url, super(formatReferenceNum(references.get().at(url))))
   }
-  update
-  link(url, super(formatReferenceNum(num)))
 }
 
 #let httpLink(target) = link("https://" + target)[#target]
